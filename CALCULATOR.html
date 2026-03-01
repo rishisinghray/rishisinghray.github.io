@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Realme UI Calculator</title>
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #141416;
+            --btn-glass: rgba(255, 255, 255, 0.12);
+            --btn-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f0f0f0;
+            --text-gold: #c6a771;
+            --bg-gold: #ceb07a;
+            --font-main: 'Kalam', cursive;
+        }
+
+        body {
+            margin: 0; height: 100vh; display: flex; justify-content: center;
+            align-items: center; background-color: #000; font-family: sans-serif;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        .app-container {
+            width: 100%; max-width: 380px; height: 100vh; max-height: 800px;
+            background-color: var(--bg-dark); border-radius: 40px; position: relative;
+            display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            border: 8px solid #222; overflow: hidden; box-sizing: border-box;
+        }
+
+        /* Top Bar */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 24px 20px; color: var(--text-main); }
+        .icon-btn {
+            background: none; border: none; color: var(--text-main); cursor: pointer;
+            padding: 8px; border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            transition: background 0.2s;
+        }
+        .icon-btn:hover, .icon-btn.active { background: rgba(255,255,255,0.15); }
+        .icon-btn svg { width: 22px; height: 22px; fill: currentColor; }
+        .right-icons { display: flex; gap: 8px; }
+
+        /* Floating Menu Dropdown */
+        .menu-dropdown {
+            position: absolute; top: 70px; right: 20px; background-color: #2a2a2c;
+            border-radius: 16px; width: 170px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 100; display: none;
+        }
+        .menu-dropdown.active { display: block; }
+        .menu-item {
+            padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+            color: var(--text-main); font-size: 15px; font-weight: 500; cursor: pointer; font-family: var(--font-main);
+        }
+        .menu-item:hover { background: rgba(255,255,255,0.05); }
+        .menu-item svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+        .menu-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 20px; }
+
+        /* Display Screen */
+        .display-area {
+            flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px 24px; text-align: right;
+        }
+        .calc-input { color: var(--text-main); font-size: 50px; font-family: var(--font-main); margin: 0; padding: 0; min-height: 70px; word-wrap: break-word; }
+
+        /* General Keypad Styles */
+        .keypad { padding: 0 16px 30px 16px; display: grid; gap: 12px 10px; }
+        .keypad button {
+            background-color: var(--btn-glass); border: 1px solid var(--btn-border); border-radius: 50%;
+            aspect-ratio: 1 / 1; color: var(--text-main); font-family: var(--font-main); font-size: 22px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: transform 0.1s; font-weight: bold;
+        }
+        .keypad button:active { transform: scale(0.9); background-color: rgba(255, 255, 255, 0.2); }
+        .keypad button svg { width: 22px; height: 22px; fill: currentColor; }
+        
+        .active-mode { color: var(--text-gold) !important; font-weight: bold; }
+        .btn-equals { background-color: var(--bg-gold) !important; color: #111 !important; border: none !important; font-size: 26px !important; font-weight: bold; box-shadow: 0 4px 15px rgba(206, 176, 122, 0.3); }
+        .btn-equals:active { background-color: #bfa36e !important; }
+
+        /* Standard 4-Column Layout */
+        .standard-keypad { grid-template-columns: repeat(4, 1fr); }
+        
+        /* Scientific 5-Column Layout */
+        .scientific-keypad { grid-template-columns: repeat(5, 1fr); display: none; }
+        .scientific-keypad button { font-size: 19px; }
+
+        /* Unit Converter Overlay */
+        .unit-converter {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-dark); z-index: 200; display: none; flex-direction: column;
+        }
+        .unit-converter.active { display: flex; }
+        .uc-header { display: flex; align-items: center; padding: 24px; gap: 16px; color: var(--text-main); font-size: 20px; font-family: var(--font-main); }
+        .uc-grid { padding: 0 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .uc-card {
+            background: #212124; border-radius: 16px; aspect-ratio: 1/1.2;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 12px; color: var(--text-main); cursor: pointer; font-family: var(--font-main); font-size: 14px;
+        }
+        .uc-card:active { transform: scale(0.95); }
+        .uc-card svg { width: 28px; height: 28px; fill: currentColor; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <!-- Expand Button -->
+        <button class="icon-btn" onclick="alert('Full Screen Mode')">
+            <svg viewBox="0 0 24 24"><path d="M5 5h5v2H7v3H5V5zm5 14H5v-5h2v3h3v2zm9-9h-2V7h-3V5h5v5zm-5 9h3v-3h2v5h-5v-2z"/></svg>
+        </button>
+        <div class="right-icons">
+            <!-- Math Icon (Toggles Scientific / Standard) -->
+            <button class="icon-btn" id="mathToolsBtn" onclick="toggleMathTools()">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 14H9v-2h2v2zm0-3H9V7h2v7zm5 3h-2v-2h2v2zm0-3h-2v-2h2v2zm0-3h-2V7h2v5z"/></svg>
+            </button>
+            <!-- Grid Icon : Opens Unit Converter -->
+            <button class="icon-btn" onclick="toggleConverter()">
+                <svg viewBox="0 0 24 24"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg>
+            </button>
+            <!-- 3 Dots Menu Icon -->
+            <button class="icon-btn" onclick="toggleMenu(event)">
+                <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Dropdown Menu -->
+    <div class="menu-dropdown" id="dropdownMenu">
+        <div class="menu-item" onclick="alert('History will show here')">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> History
+        </div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" onclick="alert('Settings menu opened')">
+            <svg viewBox="0 0 24 24"><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/><circle cx="12" cy="12" r="3"/></svg> Settings
+        </div>
+    </div>
+
+    <!-- Calculator Display -->
+    <div class="display-area">
+        <div class="calc-input" id="display"></div>
+    </div>
+
+    <!-- STANDARD KEYPAD (4-COLUMN DEFAULT) -->
+    <div class="keypad standard-keypad" id="standard-keypad">
+        <button onclick="clearScreen()">AC</button>
+        <button onclick="addText('%')">%</button>
+        <button onclick="backspace()">
+            <svg viewBox="0 0 24 24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z"/></svg>
+        </button>
+        <button onclick="addText('÷')">÷</button>
+
+        <button onclick="addText('7')">7</button>
+        <button onclick="addText('8')">8</button>
+        <button onclick="addText('9')">9</button>
+        <button onclick="addText('×')">×</button>
+
+        <button onclick="addText('4')">4</button>
+        <button onclick="addText('5')">5</button>
+        <button onclick="addText('6')">6</button>
+        <button onclick="addText('−')">−</button>
+
+        <button onclick="addText('1')">1</button>
+        <button onclick="addText('2')">2</button>
+        <button onclick="addText('3')">3</button>
+        <button onclick="addText('+')">+</button>
+
+        <button onclick="addText('00')">00</button>
+        <button onclick="addText('0')">0</button>
+        <button onclick="addText('.')">.</button>
+        <button class="btn-equals" onclick="calculateResult()">=</button>
+    </div>
+
+    <!-- SCIENTIFIC KEYPAD (5-COLUMN OPTION) -->
+    <div class="keypad scientific-keypad" id="scientific-keypad">
+        <button onclick="addText('sin(')">sin</button>
+        <button onclick="addText('cos(')">cos</button>
+        <button onclick="addText('tan(')">tan</button>
+        <button id="btnRad" onclick="setAngleMode('rad')">rad</button>
+        <button id="btnDeg" class="active-mode" onclick="setAngleMode('deg')">deg</button>
+
+        <button onclick="addText('log(')">log</button>
+        <button onclick="addText('ln(')">ln</button>
+        <button onclick="addText('(')">(</button>
+        <button onclick="addText(')')">)</button>
+        <button onclick="alert('Inverse mode toggled')">inv</button>
+
+        <button onclick="addText('!')">!</button>
+        <button onclick="clearScreen()">AC</button>
+        <button onclick="addText('%')">%</button>
+        <button onclick="backspace()">
+            <svg viewBox="0 0 24 24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z"/></svg>
+        </button>
+        <button onclick="addText('÷')">÷</button>
+
+        <button onclick="addText('^')">^</button>
+        <button onclick="addText('7')">7</button>
+        <button onclick="addText('8')">8</button>
+        <button onclick="addText('9')">9</button>
+        <button onclick="addText('×')">×</button>
+
+        <button onclick="addText('√(')">√</button>
+        <button onclick="addText('4')">4</button>
+        <button onclick="addText('5')">5</button>
+        <button onclick="addText('6')">6</button>
+        <button onclick="addText('−')">−</button>
+
+        <button onclick="addText('π')">π</button>
+        <button onclick="addText('1')">1</button>
+        <button onclick="addText('2')">2</button>
+        <button onclick="addText('3')">3</button>
+        <button onclick="addText('+')">+</button>
+
+        <button onclick="addText('e')">e</button>
+        <button onclick="addText('00')">00</button>
+        <button onclick="addText('0')">0</button>
+        <button onclick="addText('.')">.</button>
+        <button class="btn-equals" onclick="calculateResult()">=</button>
+    </div>
+
+    <!-- Unit Converter Full Screen Overlay -->
+    <div class="unit-converter" id="unitConverter">
+        <div class="uc-header">
+            <button class="icon-btn" onclick="toggleConverter()">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </button>
+            <span>Unit converter</span>
+        </div>
+        <div class="uc-grid">
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h-2v-2h2v-2h-2V9h2V7h2v2h2v2h-2v2h2v2h-2v2z"/></svg>Currency</div>
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M21 9H3v6h18V9zm-2 4H5v-2h14v2z"/></svg>Length</div>
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm16 16V5H5v14h14z"/></svg>Area</div>
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15L6.04 7.5 12 10.85l5.96-3.35L12 4.15z"/></svg>Volume</div>
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>Weight</div>
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M15 13V5c0-1.66-1.34-3-3-3S9 3.34 9 5v8c-1.21.91-2 2.37-2 4 0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.63-.79-3.09-2-4zm-4-8c0-.55.45-1 1-1s1 .45 1 1v4h-2V5z"/></svg>Temp</div>
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14H9v-2h4v2zm0-4H9V7h4v5z"/></svg>Speed</div>
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm4 11h-3v3h-2v-3H8v-2h3V8h2v3h3v2z"/></svg>Pressure</div>
+            <div class="uc-card"><svg viewBox="0 0 24 24"><path d="M16 4h-2l-3.2 9h1.8l.7-2h3.4l.7 2h1.8L16 4zm-2.15 5.5L15 6.5l1.15 3h-2.3z"/></svg>Power</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const display = document.getElementById('display');
+    let isDegree = true; 
+    let isScientific = false;
+
+    function addText(val) { display.innerText += val; }
+    function clearScreen() { display.innerText = ''; }
+    function backspace() { display.innerText = display.innerText.slice(0, -1); }
+
+    // Toggle Scientific & Standard View
+    function toggleMathTools() {
+        isScientific = !isScientific;
+        const std = document.getElementById('standard-keypad');
+        const sci = document.getElementById('scientific-keypad');
+        const btn = document.getElementById('mathToolsBtn');
+        
+        if (isScientific) {
+            std.style.display = 'none';
+            sci.style.display = 'grid';
+            btn.classList.add('active'); // Highlight Icon
+        } else {
+            std.style.display = 'grid';
+            sci.style.display = 'none';
+            btn.classList.remove('active');
+        }
+    }
+
+    // Toggle Dropdown Menu
+    function toggleMenu(e) {
+        e.stopPropagation();
+        document.getElementById('dropdownMenu').classList.toggle('active');
+    }
+
+    // Toggle Unit Converter Screen
+    function toggleConverter() {
+        document.getElementById('unitConverter').classList.toggle('active');
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('dropdownMenu');
+        if (!menu.contains(e.target)) menu.classList.remove('active');
+    });
+
+    // Angle Mode: RAD / DEG
+    function setAngleMode(mode) {
+        document.getElementById('btnRad').classList.remove('active-mode');
+        document.getElementById('btnDeg').classList.remove('active-mode');
+        if (mode === 'deg') {
+            isDegree = true;
+            document.getElementById('btnDeg').classList.add('active-mode');
+        } else {
+            isDegree = false;
+            document.getElementById('btnRad').classList.add('active-mode');
+        }
+    }
+
+    // Helper functions for math
+    function factorial(n) {
+        if (n === 0 || n === 1) return 1;
+        let result = 1;
+        for (let i = n; i > 1; i--) result *= i;
+        return result;
+    }
+
+    window.calcSin = function(x) { return Math.sin(isDegree ? x * Math.PI / 180 : x); };
+    window.calcCos = function(x) { return Math.cos(isDegree ? x * Math.PI / 180 : x); };
+    window.calcTan = function(x) { return Math.tan(isDegree ? x * Math.PI / 180 : x); };
+    window.calcLog = Math.log10;
+    window.calcLn = Math.log;
+    window.calcSqrt = Math.sqrt;
+
+    // Advanced Error-Free Calculation Logic
+    function calculateResult() {
+        let expr = display.innerText;
+        if (!expr) return;
+
+        // Auto-close missing brackets: E.g., if user writes "sin(90", it will automatically evaluate "sin(90)"
+        let openCount = (expr.match(/\(/g) || []).length;
+        let closeCount = (expr.match(/\)/g) || []).length;
+        if (openCount > closeCount) {
+            expr += ')'.repeat(openCount - closeCount);
+        }
+
+        // Fix Implicit Multiplications (E.g., 79sin( -> 79*sin( | 4+5√( -> 4+5*√( )
+        expr = expr.replace(/(\d)(sin|cos|tan|log|ln|√|π|e|\()/g, '$1*$2');
+        expr = expr.replace(/(\))(sin|cos|tan|log|ln|√|π|e|\(|\d)/g, '$1*$2');
+        expr = expr.replace(/(π|e)(\d|sin|cos|tan|log|ln|√|π|e|\()/g, '$1*$2');
+
+        // Replace basic visual operators
+        expr = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+        expr = expr.replace(/%/g, '/100');
+        expr = expr.replace(/π/g, 'Math.PI').replace(/e/g, 'Math.E');
+        expr = expr.replace(/\^/g, '**');
+
+        // Replace math functions with Javascript logic
+        expr = expr.replace(/sin\(/g, 'calcSin(');
+        expr = expr.replace(/cos\(/g, 'calcCos(');
+        expr = expr.replace(/tan\(/g, 'calcTan(');
+        expr = expr.replace(/log\(/g, 'calcLog(');
+        expr = expr.replace(/ln\(/g, 'calcLn(');
+        expr = expr.replace(/√\(/g, 'calcSqrt(');
+
+        // Factorial support (E.g. 5!)
+        expr = expr.replace(/(\d+)!/g, 'factorial($1)');
+
+        // Remove trailing math signs at the end so it doesn't give error (e.g., 4+5+ = 9)
+        expr = expr.replace(/[\+\-\*\/]$/, '');
+
+        try {
+            let result = eval(expr);
+            
+            // Checking if answer is valid
+            if (result === undefined || isNaN(result) || !isFinite(result)) throw new Error("Invalid");
+
+            // Fix long decimal points like 0.30000000004
+            if (result % 1 !== 0) { 
+                result = parseFloat(result.toFixed(8)); 
+            }
+            display.innerText = result;
+        } catch (error) {
+            // Show error temporarily, then revert back so the user can correct it
+            let oldText = display.innerText;
+            display.innerText = 'Error';
+            setTimeout(() => {
+                if (display.innerText === 'Error') display.innerText = oldText;
+            }, 1200);
+        }
+    }
+</script>
+
+</body>
+</html>
